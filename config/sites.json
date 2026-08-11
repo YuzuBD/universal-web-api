@@ -6660,7 +6660,8 @@
           "result_container": "[class*=\"chat-history-part\"][class*=\"producer-part\"] [class*=\"render-group-clip\"]",
           "new_chat_btn": "xpath://button[contains(., \"New session\")]",
           "message_wrapper": null,
-          "generating_indicator": "xpath://button[contains(translate(., 'STOP', 'stop'), 'stop') or contains(@aria-label, 'Stop') or contains(@aria-label, 'stop')]"
+          "generating_indicator": "xpath://button[contains(translate(., 'STOP', 'stop'), 'stop') or contains(@aria-label, 'Stop') or contains(@aria-label, 'stop')]",
+          "song_link": "[class*=\"chat-history-part\"][class*=\"producer-part\"] a[href*=\"/song/\"]"
         },
         "stream_config": {
           "mode": "dom",
@@ -6713,12 +6714,12 @@
           },
           {
             "action": "WAIT_FOR_SELECTOR",
-            "target": "result_container",
+            "target": "song_link",
             "optional": false,
             "value": {
               "state": "present",
-              "timeout": 60,
-              "poll": 1
+              "timeout": 120,
+              "poll": 2
             }
           },
           {
@@ -6858,7 +6859,8 @@
           "result_container": "[class*=\"chat-history-part\"][class*=\"producer-part\"] [class*=\"render-group-clip\"]",
           "new_chat_btn": "xpath://button[contains(., \"New session\")]",
           "message_wrapper": null,
-          "generating_indicator": "xpath://button[contains(translate(., 'STOP', 'stop'), 'stop') or contains(@aria-label, 'Stop') or contains(@aria-label, 'stop')]"
+          "generating_indicator": "xpath://button[contains(translate(., 'STOP', 'stop'), 'stop') or contains(@aria-label, 'Stop') or contains(@aria-label, 'stop')]",
+          "song_link": "[class*=\"chat-history-part\"][class*=\"producer-part\"] a[href*=\"/song/\"]"
         },
         "stream_config": {
           "mode": "dom",
@@ -6911,12 +6913,12 @@
           },
           {
             "action": "WAIT_FOR_SELECTOR",
-            "target": "result_container",
+            "target": "song_link",
             "optional": false,
             "value": {
               "state": "present",
-              "timeout": 60,
-              "poll": 1
+              "timeout": 120,
+              "poll": 2
             }
           },
           {

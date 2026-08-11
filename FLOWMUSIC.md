@@ -7,6 +7,8 @@
 > 音频获取方式：不走页面录音，也不点下载菜单。生成完成后在页面上下文直接调用
 > Flow Music 内部接口 `POST /__api/clips`（body: `{"clip_ids": ["..."]}`），
 > 从返回的 `audio_url` / `wav_url` 字段拿到真实直链，再由服务下载到本地。
+> **Producer 通常一次返回 2 首歌（A/B 变体），本适配会一次性返回全部歌曲的音频**，
+> 每首以独立 media 项给出（含 `title`，方便区分）。
 
 ## 改动文件
 
@@ -64,7 +66,7 @@
   1. 点 `New session` → 2. 填提示词 → 3. 点发送
   4. 等 `Stop generating` 出现（生成开始）→ 5. 等它消失（**生成结束**）
   6. 等会话内出现歌曲卡片（`.chat-history-part.producer-part .render-group-clip`）
-  7. 页面内调 `POST /__api/clips` 拿 `audio_url`（m4a 直链）→ 服务下载到本地返回
+  7. 收集本轮 producer 回复里的全部歌曲 id → 页面内调 `POST /__api/clips` 拿每首歌的 `audio_url`（m4a 直链）→ 服务下载到本地，全部作为 media 返回
 - 每次调用都会新建会话，互不干扰；生成的歌会留在你的 Flow Music 账号里
 
 ## 常见问题

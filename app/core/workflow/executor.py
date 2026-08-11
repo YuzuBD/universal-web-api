@@ -849,70 +849,81 @@ class WorkflowExecutor(
                         )
 
             elif action == "FLOWMUSIC_FETCH_CLIP":
-                # 生成完成后页面内调用 Flow Music __api/clips，直接取 audio_url/wav_url 真实直链
-                clip_raw = ""
+                # 生成完成后页面内调用 Flow Music __api/clips，取回本轮全部歌曲的 audio_url/wav_url 真实直链
+                clip_ids = []
                 try:
-                    clip_raw = self.tab.run_js(
+                    clip_ids = self.tab.run_js(
                         """
                         function() {
-                            const collect = () => Array.from(document.querySelectorAll('.chat-history-part.producer-part a[href*="/song/"]'))
-                                .map(a => (a.getAttribute('href') || '').match(/\\/song\\/([0-9a-fA-F-]{36})/))
-                                .filter(m => m)
-                                .map(m => m[1]);
+                            const collect = () => {
+                                const parts = document.querySelectorAll('.chat-history-part.producer-part');
+                                const last = parts[parts.length - 1];
+                                if (!last) return [];
+                                const seen = new Set();
+                                const ids = [];
+                                Array.from(last.querySelectorAll('a[href*="/song/"]')).forEach(a => {
+                                    const m = (a.getAttribute('href') || '').match(/\\/song\\/([0-9a-fA-F-]{36})/);
+                                    if (m && !seen.has(m[1])) { seen.add(m[1]); ids.push(m[1]); }
+                                });
+                                return ids;
+                            };
                             const deadline = Date.now() + 60000;
                             return (async () => {
-                                let last = '';
+                                let ids = [];
                                 while (Date.now() < deadline) {
-                                    const ids = collect();
-                                    if (ids.length) {
-                                        last = ids[ids.length - 1];
-                                        break;
-                                    }
+                                    ids = collect();
+                                    if (ids.length) break;
                                     await new Promise(r => setTimeout(r, 1000));
                                 }
-                                if (!last) {
+                                if (!ids.length) {
                                     try {
                                         const ps = JSON.parse(localStorage.getItem('playerState') || '{}');
-                                        if (ps.currentClipId) last = ps.currentClipId;
+                                        if (ps.currentClipId) ids = [ps.currentClipId];
                                     } catch (e) {}
                                 }
-                                return last;
+                                return ids;
                             })();
                         }
-                        """
+                        """,
+                        timeout=90000,
                     )
                 except Exception as exc:
-                    logger.debug(f"[FlowMusic] 获取 clip_id 失败: {exc}")
-                clip_id = str(clip_raw or "").strip()
-                audio_item = None
-                if clip_id:
+                    logger.debug(f"[FlowMusic] 获取 clip 列表失败: {exc}")
+                clip_ids = [
+                    str(c or "").strip() for c in (clip_ids or []) if str(c or "").strip()
+                ]
+                audio_items = []
+                if clip_ids:
                     try:
                         resp_text = self.tab.run_js(
-                            """
-                            function(clipId) {
-                                return (async () => {
-                                    const resp = await fetch('/__api/clips', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ clip_ids: [clipId] })
-                                    });
-                                    return await resp.text();
-                                })();
-                            }
-                            """,
-                            clip_id,
+                            (
+                                """
+                                function() {
+                                    return (async () => {
+                                        const resp = await fetch('/__api/clips', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ clip_ids: %s })
+                                        });
+                                        return await resp.text();
+                                    })();
+                                }
+                                """
+                                % json.dumps(clip_ids)
+                            ),
+                            timeout=90000,
                         )
-                        audio_item = _extract_flowmusic_audio_item(resp_text)
+                        audio_items = _extract_flowmusic_audio_items(resp_text) or []
                     except Exception as exc:
                         logger.debug(f"[FlowMusic] 获取 clip 数据失败: {exc}")
-                if audio_item is not None:
-                    logger.info(
-                        f"[FlowMusic] 已获取音频直链: {audio_item.get('url')}"
-                    )
+                if audio_items:
+                    logger.info(f"[FlowMusic] 已获取 {len(audio_items)} 个音频直链")
+                    for idx, item in enumerate(audio_items):
+                        logger.info(f"[FlowMusic]   [{idx}] {item.get('url')}")
                     yield self.formatter.pack_chunk(
                         "",
                         completion_id=self._completion_id,
-                        media=[audio_item],
+                        media=audio_items,
                     )
                 else:
                     logger.debug("[FlowMusic] 未能获取音频直链（已忽略）")
@@ -1352,46 +1363,52 @@ class WorkflowExecutor(
 __all__ = ['WorkflowExecutor']
 
 
-def _extract_flowmusic_audio_item(raw: Any) -> Optional[Dict[str, Any]]:
-    """从 __api/clips 响应 JSON 中提取 audio_url / wav_url 媒体项。"""
+def _extract_flowmusic_audio_items(raw: Any) -> list:
+    """从 __api/clips 响应 JSON 中提取全部 clip 的 audio_url / wav_url 媒体项。"""
     try:
         data = json.loads(str(raw or ""))
     except Exception:
-        return None
+        return []
 
-    def walk(node: Any) -> Optional[Dict[str, Any]]:
+    def iter_clips(node: Any):
         if isinstance(node, dict):
             audio = node.get("audio_url") or node.get("audioUrl")
-            wav = node.get("wav_url") or node.get("wavUrl")
-            url = audio or wav
-            if isinstance(url, str) and url.strip().startswith("http"):
-                url = url.strip()
-                mime = "audio/mp4"
-                low = url.lower()
-                if low.endswith(".wav"):
-                    mime = "audio/wav"
-                elif low.endswith(".mp3"):
-                    mime = "audio/mpeg"
-                elif low.endswith((".ogg", ".oga")):
-                    mime = "audio/ogg"
-                return {
-                    "media_type": "audio",
-                    "kind": "url",
-                    "url": url,
-                    "mime": mime,
-                    "label": "flowmusic_download",
-                    "source": "flowmusic_direct",
-                }
+            if isinstance(audio, str) and audio.strip().startswith("http"):
+                yield node
             for value in node.values():
-                result = walk(value)
-                if result is not None:
-                    return result
+                yield from iter_clips(value)
         elif isinstance(node, list):
             for value in node:
-                result = walk(value)
-                if result is not None:
-                    return result
-        return None
+                yield from iter_clips(value)
 
-    return walk(data)
-
+    items = []
+    seen = set()
+    for clip in iter_clips(data):
+        url = str(clip.get("audio_url") or clip.get("audioUrl") or "").strip()
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        wav = str(clip.get("wav_url") or clip.get("wavUrl") or "").strip()
+        mime = "audio/mp4"
+        low = url.lower()
+        if low.endswith(".wav"):
+            mime = "audio/wav"
+        elif low.endswith(".mp3"):
+            mime = "audio/mpeg"
+        elif low.endswith((".ogg", ".oga")):
+            mime = "audio/ogg"
+        item = {
+            "media_type": "audio",
+            "kind": "url",
+            "url": url,
+            "mime": mime,
+            "label": str(clip.get("title") or "flowmusic_download"),
+            "source": "flowmusic_direct",
+        }
+        if wav:
+            item["wav_url"] = wav
+        title = str(clip.get("title") or "").strip()
+        if title:
+            item["title"] = title
+        items.append(item)
+    return items
