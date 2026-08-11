@@ -16,7 +16,7 @@
 
 | 项目 | 值 |
 |---|---|
-| Base URL | `http://127.0.0.1:8199/v1`（可配置） |
+| Base URL | `http://192.168.1.114:8199/v1`（可配置） |
 | 端点 | `POST /chat/completions` |
 | 模型名 | `flowmusic` |
 | 认证 | 默认关闭，Header 填 `Authorization: Bearer sk-local` 即可 |
@@ -29,11 +29,11 @@
 
 ```bash
 # 服务健康
-curl http://127.0.0.1:8199/health
+curl http://192.168.1.114:8199/health
 # -> {"service":"healthy","browser":{"connected":true,"port":9222},...}
 
 # 模型是否可用（能看到 flowmusic 说明路由正常）
-curl http://127.0.0.1:8199/v1/models -H "Authorization: Bearer sk-local"
+curl http://192.168.1.114:8199/v1/models -H "Authorization: Bearer sk-local"
 ```
 
 如果 `browser.connected=false` 或 `/v1/models` 里没有 `flowmusic`：
@@ -46,7 +46,7 @@ curl http://127.0.0.1:8199/v1/models -H "Authorization: Bearer sk-local"
 ### curl
 
 ```bash
-curl http://127.0.0.1:8199/v1/chat/completions \
+curl http://192.168.1.114:8199/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer sk-local" \
   -d '{
@@ -64,7 +64,7 @@ curl http://127.0.0.1:8199/v1/chat/completions \
 import requests
 
 resp = requests.post(
-    "http://127.0.0.1:8199/v1/chat/completions",
+    "http://192.168.1.114:8199/v1/chat/completions",
     headers={"Authorization": "Bearer sk-local"},
     json={
         "model": "flowmusic",
@@ -80,7 +80,7 @@ print(data["media"])   # 音频列表
 ### Node.js
 
 ```js
-const resp = await fetch("http://127.0.0.1:8199/v1/chat/completions", {
+const resp = await fetch("http://192.168.1.114:8199/v1/chat/completions", {
   method: "POST",
   headers: { "Content-Type": "application/json", "Authorization": "Bearer sk-local" },
   body: JSON.stringify({
@@ -209,7 +209,7 @@ for i, item in enumerate(data["media"]):
 
 | 现象 | 原因 | 处理 |
 |---|---|---|
-| HTTP 500 / 请求秒回 | 服务刚改配置没重启 / 受控浏览器没就绪 | 重启服务；看 `http://127.0.0.1:8199` 控制台日志 |
+| HTTP 500 / 请求秒回 | 服务刚改配置没重启 / 受控浏览器没就绪 | 重启服务；看 `http://192.168.1.114:8199` 控制台日志 |
 | 返回 0 个 media | 未登录 / 额度用完 / 内容审核拒绝 / 生成失败 | 检查受控浏览器登录态、Flow Music 积分、换提示词 |
 | 拿到的是旧歌 | 上次遗留（正常不会发生） | 每次调用会自动新建会话；如仍异常看服务日志 |
 | 调用很慢 | 生成本身 40~150s | 属正常，把客户端超时设到 600s |
