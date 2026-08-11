@@ -128,6 +128,8 @@ def _execute_workflow_editor_test_payload(
         "KEY_PRESS": "按键",
         "JS_EXEC": "执行脚本",
         "PAGE_FETCH": "页面直发",
+        "WAIT_FOR_SELECTOR": "等待元素出现/消失",
+        "FLOWMUSIC_FETCH_CLIP": "获取 Flow Music 音频直链",
         "READONLY_HINT": "只读提示",
     }
 

@@ -6650,5 +6650,401 @@
       }
     },
     "default_preset": "主预设"
+  },
+  "www.flowmusic.app": {
+    "presets": {
+      "lyria35": {
+        "selectors": {
+          "input_box": "textarea[aria-label=\"Chat message\"]",
+          "send_btn": "button[aria-label=\"Send message\"]",
+          "result_container": "[class*=\"chat-history-part\"][class*=\"producer-part\"] [class*=\"render-group-clip\"]",
+          "new_chat_btn": "xpath://button[contains(., \"New session\")]",
+          "message_wrapper": null,
+          "generating_indicator": "xpath://button[contains(translate(., 'STOP', 'stop'), 'stop') or contains(@aria-label, 'Stop') or contains(@aria-label, 'stop')]"
+        },
+        "stream_config": {
+          "mode": "dom",
+          "hard_timeout": 600
+        },
+        "workflow": [
+          {
+            "action": "CLICK",
+            "target": "new_chat_btn",
+            "optional": false,
+            "value": null
+          },
+          {
+            "action": "WAIT",
+            "target": "",
+            "optional": false,
+            "value": 0.5
+          },
+          {
+            "action": "FILL_INPUT",
+            "target": "input_box",
+            "optional": false,
+            "value": null
+          },
+          {
+            "action": "CLICK",
+            "target": "send_btn",
+            "optional": false,
+            "value": null
+          },
+          {
+            "action": "WAIT_FOR_SELECTOR",
+            "target": "generating_indicator",
+            "optional": true,
+            "value": {
+              "state": "present",
+              "timeout": 30,
+              "poll": 1
+            }
+          },
+          {
+            "action": "WAIT_FOR_SELECTOR",
+            "target": "generating_indicator",
+            "optional": true,
+            "value": {
+              "state": "absent",
+              "timeout": 300,
+              "poll": 2
+            }
+          },
+          {
+            "action": "WAIT_FOR_SELECTOR",
+            "target": "result_container",
+            "optional": false,
+            "value": {
+              "state": "present",
+              "timeout": 60,
+              "poll": 1
+            }
+          },
+          {
+            "action": "FLOWMUSIC_FETCH_CLIP",
+            "target": "",
+            "optional": false,
+            "value": null
+          }
+        ],
+        "stealth": false,
+        "image_extraction": {
+          "enabled": true,
+          "modalities": {
+            "image": {
+              "enabled": false,
+              "run_policy": "disabled",
+              "quick_probe_timeout_seconds": 1,
+              "late_wait_timeout_seconds": 45,
+              "blind_wait_timeout_seconds": 1
+            },
+            "audio": {
+              "enabled": true,
+              "run_policy": "generic_only",
+              "quick_probe_timeout_seconds": 1,
+              "capture_timeout_seconds": 12
+            },
+            "video": {
+              "enabled": false,
+              "run_policy": "disabled",
+              "quick_probe_timeout_seconds": 1,
+              "late_wait_timeout_seconds": 90
+            }
+          },
+          "selector": "img",
+          "audio_selector": "audio, audio source",
+          "video_selector": "video, video source",
+          "container_selector": "[class*=\"render-group-clip\"]",
+          "force_postprocess": true,
+          "debounce_seconds": 0,
+          "wait_for_load": true,
+          "load_timeout_seconds": 15,
+          "download_blobs": true,
+          "max_size_mb": 50,
+          "canvas_export_mime": "image/jpeg",
+          "canvas_export_quality": 0.88,
+          "src_allow_patterns": [],
+          "mode": "first",
+          "audio_capture_enabled": false,
+          "audio_capture_mute_playback": true,
+          "audio_capture_preload_enabled": false,
+          "audio_capture_reload_before_workflow": false,
+          "audio_capture_preserve_graph": true,
+          "audio_capture_terminal_settle_seconds": 0.5,
+          "audio_trigger_selector": "button[aria-label^=\"Play \"]",
+          "audio_trigger_labels": [
+            "play",
+            "播放"
+          ],
+          "audio_capture_max_wait_seconds": 120,
+          "audio_capture_min_wait_seconds": 2,
+          "audio_capture_hard_max_wait_seconds": 180,
+          "audio_capture_estimated_chars_per_second": 1,
+          "audio_capture_wait_padding_seconds": 2,
+          "audio_network_capture": {
+            "enabled": false,
+            "timeout_seconds": 2.5,
+            "transport": "page_websocket_probe",
+            "url_patterns": [
+              "__api/clips",
+              "storage.googleapis.com",
+              ".m4a",
+              ".wav"
+            ],
+            "extractor": "voicegenie_binary_stream",
+            "settle_seconds": 0.35,
+            "max_payload_bytes": 52428800
+          },
+          "audio_browser_tts_fallback": {
+            "enabled": false,
+            "provider": "doubao_samantha",
+            "speaker": "2",
+            "speech_rate": 0,
+            "pitch": 0,
+            "format": "aac",
+            "timeout_seconds": 30,
+            "pc_version": "3.20.2",
+            "aid": "497858",
+            "real_aid": "497858",
+            "language": "zh",
+            "device_platform": "web",
+            "pkg_type": "release_version",
+            "region": "CN",
+            "sys_region": "CN",
+            "use_olympus_account": "1",
+            "samantha_web": "1"
+          },
+          "audio_capture_poll_seconds": 0.5,
+          "audio_capture_silence_seconds": 2,
+          "audio_capture_activity_threshold": 0.006,
+          "audio_capture_activity_silence_seconds": 1
+        },
+        "file_paste": {
+          "enabled": false,
+          "threshold": 30000,
+          "temp_file_type": "txt",
+          "hint_text": "完全专注于文件内容",
+          "txt_hint_text": "完全专注于文件内容",
+          "pdf_hint_text": "完全专注于文件内容",
+          "error_hint_text": "输入文本长度超过限制，已中止发送",
+          "reacquire_input_after_upload": false,
+          "post_upload_input_selector": "",
+          "post_upload_settle": 0,
+          "upload_signal_timeout": 2.5,
+          "upload_signal_grace": 3,
+          "state_probe": {
+            "enabled": false,
+            "code": ""
+          }
+        },
+        "prompt_padding": {
+          "enabled": false,
+          "marker_text": "",
+          "segments_per_side": 0,
+          "random_insert_enabled": false,
+          "random_insert_chars": ""
+        }
+      }
+    },
+    "default_preset": "lyria35"
+  },
+  "flowmusic.app": {
+    "presets": {
+      "lyria35": {
+        "selectors": {
+          "input_box": "textarea[aria-label=\"Chat message\"]",
+          "send_btn": "button[aria-label=\"Send message\"]",
+          "result_container": "[class*=\"chat-history-part\"][class*=\"producer-part\"] [class*=\"render-group-clip\"]",
+          "new_chat_btn": "xpath://button[contains(., \"New session\")]",
+          "message_wrapper": null,
+          "generating_indicator": "xpath://button[contains(translate(., 'STOP', 'stop'), 'stop') or contains(@aria-label, 'Stop') or contains(@aria-label, 'stop')]"
+        },
+        "stream_config": {
+          "mode": "dom",
+          "hard_timeout": 600
+        },
+        "workflow": [
+          {
+            "action": "CLICK",
+            "target": "new_chat_btn",
+            "optional": false,
+            "value": null
+          },
+          {
+            "action": "WAIT",
+            "target": "",
+            "optional": false,
+            "value": 0.5
+          },
+          {
+            "action": "FILL_INPUT",
+            "target": "input_box",
+            "optional": false,
+            "value": null
+          },
+          {
+            "action": "CLICK",
+            "target": "send_btn",
+            "optional": false,
+            "value": null
+          },
+          {
+            "action": "WAIT_FOR_SELECTOR",
+            "target": "generating_indicator",
+            "optional": true,
+            "value": {
+              "state": "present",
+              "timeout": 30,
+              "poll": 1
+            }
+          },
+          {
+            "action": "WAIT_FOR_SELECTOR",
+            "target": "generating_indicator",
+            "optional": true,
+            "value": {
+              "state": "absent",
+              "timeout": 300,
+              "poll": 2
+            }
+          },
+          {
+            "action": "WAIT_FOR_SELECTOR",
+            "target": "result_container",
+            "optional": false,
+            "value": {
+              "state": "present",
+              "timeout": 60,
+              "poll": 1
+            }
+          },
+          {
+            "action": "FLOWMUSIC_FETCH_CLIP",
+            "target": "",
+            "optional": false,
+            "value": null
+          }
+        ],
+        "stealth": false,
+        "image_extraction": {
+          "enabled": true,
+          "modalities": {
+            "image": {
+              "enabled": false,
+              "run_policy": "disabled",
+              "quick_probe_timeout_seconds": 1,
+              "late_wait_timeout_seconds": 45,
+              "blind_wait_timeout_seconds": 1
+            },
+            "audio": {
+              "enabled": true,
+              "run_policy": "generic_only",
+              "quick_probe_timeout_seconds": 1,
+              "capture_timeout_seconds": 12
+            },
+            "video": {
+              "enabled": false,
+              "run_policy": "disabled",
+              "quick_probe_timeout_seconds": 1,
+              "late_wait_timeout_seconds": 90
+            }
+          },
+          "selector": "img",
+          "audio_selector": "audio, audio source",
+          "video_selector": "video, video source",
+          "container_selector": "[class*=\"render-group-clip\"]",
+          "force_postprocess": true,
+          "debounce_seconds": 0,
+          "wait_for_load": true,
+          "load_timeout_seconds": 15,
+          "download_blobs": true,
+          "max_size_mb": 50,
+          "canvas_export_mime": "image/jpeg",
+          "canvas_export_quality": 0.88,
+          "src_allow_patterns": [],
+          "mode": "first",
+          "audio_capture_enabled": false,
+          "audio_capture_mute_playback": true,
+          "audio_capture_preload_enabled": false,
+          "audio_capture_reload_before_workflow": false,
+          "audio_capture_preserve_graph": true,
+          "audio_capture_terminal_settle_seconds": 0.5,
+          "audio_trigger_selector": "button[aria-label^=\"Play \"]",
+          "audio_trigger_labels": [
+            "play",
+            "播放"
+          ],
+          "audio_capture_max_wait_seconds": 120,
+          "audio_capture_min_wait_seconds": 2,
+          "audio_capture_hard_max_wait_seconds": 180,
+          "audio_capture_estimated_chars_per_second": 1,
+          "audio_capture_wait_padding_seconds": 2,
+          "audio_network_capture": {
+            "enabled": false,
+            "timeout_seconds": 2.5,
+            "transport": "page_websocket_probe",
+            "url_patterns": [
+              "__api/clips",
+              "storage.googleapis.com",
+              ".m4a",
+              ".wav"
+            ],
+            "extractor": "voicegenie_binary_stream",
+            "settle_seconds": 0.35,
+            "max_payload_bytes": 52428800
+          },
+          "audio_browser_tts_fallback": {
+            "enabled": false,
+            "provider": "doubao_samantha",
+            "speaker": "2",
+            "speech_rate": 0,
+            "pitch": 0,
+            "format": "aac",
+            "timeout_seconds": 30,
+            "pc_version": "3.20.2",
+            "aid": "497858",
+            "real_aid": "497858",
+            "language": "zh",
+            "device_platform": "web",
+            "pkg_type": "release_version",
+            "region": "CN",
+            "sys_region": "CN",
+            "use_olympus_account": "1",
+            "samantha_web": "1"
+          },
+          "audio_capture_poll_seconds": 0.5,
+          "audio_capture_silence_seconds": 2,
+          "audio_capture_activity_threshold": 0.006,
+          "audio_capture_activity_silence_seconds": 1
+        },
+        "file_paste": {
+          "enabled": false,
+          "threshold": 30000,
+          "temp_file_type": "txt",
+          "hint_text": "完全专注于文件内容",
+          "txt_hint_text": "完全专注于文件内容",
+          "pdf_hint_text": "完全专注于文件内容",
+          "error_hint_text": "输入文本长度超过限制，已中止发送",
+          "reacquire_input_after_upload": false,
+          "post_upload_input_selector": "",
+          "post_upload_settle": 0,
+          "upload_signal_timeout": 2.5,
+          "upload_signal_grace": 3,
+          "state_probe": {
+            "enabled": false,
+            "code": ""
+          }
+        },
+        "prompt_padding": {
+          "enabled": false,
+          "marker_text": "",
+          "segments_per_side": 0,
+          "random_insert_enabled": false,
+          "random_insert_chars": ""
+        }
+      }
+    },
+    "default_preset": "lyria35"
   }
 }

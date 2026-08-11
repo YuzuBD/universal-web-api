@@ -9,6 +9,7 @@ app/core/workflow/executor.py - 工作流执行器
 """
 
 import copy
+import json
 import time
 import random
 from typing import Generator, Dict, Any, Callable, Optional
@@ -734,7 +735,7 @@ class WorkflowExecutor(
         self._context = context
         previous_step_execution = self._current_step_execution
         self._current_step_execution = execution if isinstance(execution, dict) else {}
-        if action in ("STREAM_WAIT", "STREAM_OUTPUT"):
+        if action in ("STREAM_WAIT", "STREAM_OUTPUT", "WAIT_FOR_SELECTOR"):
             self._last_stream_media_state = {}
         
         try:
@@ -805,7 +806,117 @@ class WorkflowExecutor(
                         self._request_transport_bypass = True
                         self._clear_request_transport_state()
                 return
-            
+
+            elif action == "WAIT_FOR_SELECTOR":
+                # 等待元素出现/消失（适合长耗时生成类站点，如音乐/视频生成）
+                wait_cfg = value if isinstance(value, dict) else {}
+                wait_state = str(wait_cfg.get("state") or "present").strip().lower()
+                wait_timeout = float(wait_cfg.get("timeout") or 120)
+                wait_poll = float(wait_cfg.get("poll") or 1.0)
+                wait_target = str(wait_cfg.get("selector") or "").strip() or selector or target_key
+                wait_deadline = time.time() + wait_timeout
+                wait_ok = False
+                while time.time() < wait_deadline:
+                    if self._check_cancelled():
+                        return
+                    wait_found = False
+                    try:
+                        wait_eles = self.finder.find_all(wait_target, timeout=0.5)
+                        for wait_ele in wait_eles or []:
+                            try:
+                                if wait_ele.states.is_displayed:
+                                    wait_found = True
+                                    break
+                            except Exception:
+                                wait_found = True
+                                break
+                    except Exception:
+                        wait_found = False
+                    if (wait_state == "present" and wait_found) or (
+                        wait_state == "absent" and not wait_found
+                    ):
+                        wait_ok = True
+                        break
+                    time.sleep(min(max(wait_poll, 0.2), 2.0))
+                if not wait_ok:
+                    logger.debug(
+                        f"[WAIT_FOR_SELECTOR] 等待 {wait_state} 超时: "
+                        f"{wait_target or '-'} ({wait_timeout:.0f}s)"
+                    )
+                    if not optional:
+                        raise WorkflowError(
+                            f"wait_for_selector_timeout:{wait_target}:{wait_state}"
+                        )
+
+            elif action == "FLOWMUSIC_FETCH_CLIP":
+                # 生成完成后页面内调用 Flow Music __api/clips，直接取 audio_url/wav_url 真实直链
+                clip_raw = ""
+                try:
+                    clip_raw = self.tab.run_js(
+                        """
+                        function() {
+                            const collect = () => Array.from(document.querySelectorAll('.chat-history-part.producer-part a[href*="/song/"]'))
+                                .map(a => (a.getAttribute('href') || '').match(/\\/song\\/([0-9a-fA-F-]{36})/))
+                                .filter(m => m)
+                                .map(m => m[1]);
+                            const deadline = Date.now() + 60000;
+                            return (async () => {
+                                let last = '';
+                                while (Date.now() < deadline) {
+                                    const ids = collect();
+                                    if (ids.length) {
+                                        last = ids[ids.length - 1];
+                                        break;
+                                    }
+                                    await new Promise(r => setTimeout(r, 1000));
+                                }
+                                if (!last) {
+                                    try {
+                                        const ps = JSON.parse(localStorage.getItem('playerState') || '{}');
+                                        if (ps.currentClipId) last = ps.currentClipId;
+                                    } catch (e) {}
+                                }
+                                return last;
+                            })();
+                        }
+                        """
+                    )
+                except Exception as exc:
+                    logger.debug(f"[FlowMusic] 获取 clip_id 失败: {exc}")
+                clip_id = str(clip_raw or "").strip()
+                audio_item = None
+                if clip_id:
+                    try:
+                        resp_text = self.tab.run_js(
+                            """
+                            function(clipId) {
+                                return (async () => {
+                                    const resp = await fetch('/__api/clips', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ clip_ids: [clipId] })
+                                    });
+                                    return await resp.text();
+                                })();
+                            }
+                            """,
+                            clip_id,
+                        )
+                        audio_item = _extract_flowmusic_audio_item(resp_text)
+                    except Exception as exc:
+                        logger.debug(f"[FlowMusic] 获取 clip 数据失败: {exc}")
+                if audio_item is not None:
+                    logger.info(
+                        f"[FlowMusic] 已获取音频直链: {audio_item.get('url')}"
+                    )
+                    yield self.formatter.pack_chunk(
+                        "",
+                        completion_id=self._completion_id,
+                        media=[audio_item],
+                    )
+                else:
+                    logger.debug("[FlowMusic] 未能获取音频直链（已忽略）")
+
             elif action == "CLICK":
                 # ===== 隐身模式：首次交互前执行人类行为预热 =====
                 self._maybe_warmup_page_for_stealth(action, target_key)
@@ -1239,3 +1350,48 @@ class WorkflowExecutor(
 
 
 __all__ = ['WorkflowExecutor']
+
+
+def _extract_flowmusic_audio_item(raw: Any) -> Optional[Dict[str, Any]]:
+    """从 __api/clips 响应 JSON 中提取 audio_url / wav_url 媒体项。"""
+    try:
+        data = json.loads(str(raw or ""))
+    except Exception:
+        return None
+
+    def walk(node: Any) -> Optional[Dict[str, Any]]:
+        if isinstance(node, dict):
+            audio = node.get("audio_url") or node.get("audioUrl")
+            wav = node.get("wav_url") or node.get("wavUrl")
+            url = audio or wav
+            if isinstance(url, str) and url.strip().startswith("http"):
+                url = url.strip()
+                mime = "audio/mp4"
+                low = url.lower()
+                if low.endswith(".wav"):
+                    mime = "audio/wav"
+                elif low.endswith(".mp3"):
+                    mime = "audio/mpeg"
+                elif low.endswith((".ogg", ".oga")):
+                    mime = "audio/ogg"
+                return {
+                    "media_type": "audio",
+                    "kind": "url",
+                    "url": url,
+                    "mime": mime,
+                    "label": "flowmusic_download",
+                    "source": "flowmusic_direct",
+                }
+            for value in node.values():
+                result = walk(value)
+                if result is not None:
+                    return result
+        elif isinstance(node, list):
+            for value in node:
+                result = walk(value)
+                if result is not None:
+                    return result
+        return None
+
+    return walk(data)
+

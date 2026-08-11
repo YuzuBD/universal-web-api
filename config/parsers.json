@@ -14,6 +14,19 @@
       "supported_patterns": [
         "**/open-apis/bot/chat**"
       ]
+    },
+    "flowmusic": {
+      "id": "flowmusic",
+      "name": "Google Flow Music",
+      "description": "从 Flow Music __api/clips 响应中提取 audio_url / wav_url 直链",
+      "module": "app.core.parsers.flowmusic_parser",
+      "class": "FlowMusicParser",
+      "module_name": "flowmusic_parser",
+      "filename": "flowmusic_parser.py",
+      "enabled": true,
+      "supported_patterns": [
+        "__api/clips"
+      ]
     }
   }
 }

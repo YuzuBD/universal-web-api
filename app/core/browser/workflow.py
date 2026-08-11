@@ -143,7 +143,7 @@ class BrowserWorkflowMixin:
         for index in range(max(0, int(start_index or 0)), len(workflow or [])):
             step = workflow[index] or {}
             action = str(step.get("action", "") or "").strip().upper()
-            if action in {"STREAM_WAIT", "STREAM_OUTPUT"}:
+            if action in {"STREAM_WAIT", "STREAM_OUTPUT", "WAIT_FOR_SELECTOR", "FLOWMUSIC_FETCH_CLIP"}:
                 return index
         return None
 
@@ -1873,7 +1873,7 @@ class BrowserWorkflowMixin:
                                 executor.rebuild_network_listener_after_external_interruption(
                                     "workflow_interrupt_resume",
                                     allow_dom_image_resume=current_action
-                                    in {"STREAM_WAIT", "STREAM_OUTPUT"},
+                                    in {"STREAM_WAIT", "STREAM_OUTPUT", "WAIT_FOR_SELECTOR", "FLOWMUSIC_FETCH_CLIP"},
                                 )
                             except Exception:
                                 pass
@@ -1936,7 +1936,7 @@ class BrowserWorkflowMixin:
                         continue
 
                     selector = selectors.get(target_key, '')
-                    if action_upper in {"STREAM_WAIT", "STREAM_OUTPUT", "PAGE_FETCH"}:
+                    if action_upper in {"STREAM_WAIT", "STREAM_OUTPUT", "WAIT_FOR_SELECTOR", "FLOWMUSIC_FETCH_CLIP", "PAGE_FETCH"}:
                         self._emit_request_block(
                             request_blocks,
                             3,
@@ -1979,7 +1979,7 @@ class BrowserWorkflowMixin:
 
                     # 修复：补入 SELECT_MODEL。执行器 executor_actions.py 对空 selector 有硬编码兜底，
                     # 且编辑器测试路径无此校验，漏配会导致"测试通过、生产报 缺少配置: model_select_btn"
-                    if not selector and action not in ("WAIT", "KEY_PRESS", "COORD_CLICK", "COORD_SCROLL", "JS_EXEC", "READONLY_HINT", "PAGE_FETCH", "SELECT_MODEL"):
+                    if not selector and action not in ("WAIT", "KEY_PRESS", "COORD_CLICK", "COORD_SCROLL", "JS_EXEC", "READONLY_HINT", "PAGE_FETCH", "SELECT_MODEL", "FLOWMUSIC_FETCH_CLIP"):
                         if optional:
                             logger.debug(
                                 f"{step_tag} 跳过: "
@@ -2059,7 +2059,7 @@ class BrowserWorkflowMixin:
                         )
                         if retry_current_stream_step:
                             setattr(session, "_workflow_retry_current_stream_step", False)
-                            if action_upper in {"STREAM_WAIT", "STREAM_OUTPUT"}:
+                            if action_upper in {"STREAM_WAIT", "STREAM_OUTPUT", "WAIT_FOR_SELECTOR", "FLOWMUSIC_FETCH_CLIP"}:
                                 setattr(session, "_workflow_stop_reason", "command_interrupt")
                                 logger.info(
                                     f"[{session.id}] 当前监听步骤被验证码/限流打断，"
@@ -2069,7 +2069,7 @@ class BrowserWorkflowMixin:
 
                         if command_engine is not None and command_engine.workflow_interrupt_requested(session):
                             setattr(session, "_workflow_stop_reason", "command_interrupt")
-                            if action_upper in {"STREAM_WAIT", "STREAM_OUTPUT"}:
+                            if action_upper in {"STREAM_WAIT", "STREAM_OUTPUT", "WAIT_FOR_SELECTOR", "FLOWMUSIC_FETCH_CLIP"}:
                                 logger.info(
                                     f"[{session.id}] 监听步骤收到命令插队请求，"
                                     f"保持在 {step_tag} 等待恢复"
@@ -2082,13 +2082,13 @@ class BrowserWorkflowMixin:
                             logger.info(f"[{session.id}] 步骤完成后检测到取消，提前结束工作流")
                             if command_engine is not None and command_engine.workflow_interrupt_requested(session):
                                 setattr(session, "_workflow_stop_reason", "command_interrupt")
-                                if action_upper not in {"STREAM_WAIT", "STREAM_OUTPUT"}:
+                                if action_upper not in {"STREAM_WAIT", "STREAM_OUTPUT", "WAIT_FOR_SELECTOR", "FLOWMUSIC_FETCH_CLIP"}:
                                     step_index += 1
                                 continue
                             break
 
                         page_fetch_sent = False
-                        if action in ("STREAM_WAIT", "STREAM_OUTPUT"):
+                        if action in ("STREAM_WAIT", "STREAM_OUTPUT", "WAIT_FOR_SELECTOR", "FLOWMUSIC_FETCH_CLIP"):
                             result_container_selector = selector
                         if (
                             action == "PAGE_FETCH"
@@ -2105,7 +2105,7 @@ class BrowserWorkflowMixin:
                             and (
                                 self._step_submits_conversation_request(action, target_key, param_value)
                                 or page_fetch_sent
-                                or action_upper in {"STREAM_WAIT", "STREAM_OUTPUT"}
+                                or action_upper in {"STREAM_WAIT", "STREAM_OUTPUT", "WAIT_FOR_SELECTOR", "FLOWMUSIC_FETCH_CLIP"}
                             )
                         ):
                             session.mark_conversation_activity(domain, resolved_preset_name)

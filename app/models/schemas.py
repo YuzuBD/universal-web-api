@@ -26,6 +26,8 @@ ActionType = Literal[
     "JS_EXEC",
     "READONLY_HINT",
     "PAGE_FETCH",
+    "WAIT_FOR_SELECTOR",
+    "FLOWMUSIC_FETCH_CLIP",
 ]
 
 # ================= 选择器字段名称 =================
