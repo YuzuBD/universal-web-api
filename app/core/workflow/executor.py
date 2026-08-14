@@ -918,10 +918,26 @@ class WorkflowExecutor(
                         logger.debug(f"[FlowMusic] 获取 clip 数据失败: {exc}")
                 if audio_items:
                     logger.info(f"[FlowMusic] 已获取 {len(audio_items)} 个音频直链")
+                    content_lines = []
                     for idx, item in enumerate(audio_items):
+                        title = str(
+                            item.get("title") or item.get("label") or f"Song {idx + 1}"
+                        )
+                        url = str(item.get("url") or "").strip()
+                        content_lines.append(f"[audio_{idx}]({url}) - {title}")
+                        sp = str(item.get("sound_prompt") or "").strip()
+                        if sp:
+                            content_lines.append(f"  prompt: {sp}")
+                        lyr = str(item.get("lyrics") or "").strip()
+                        if lyr:
+                            content_lines.append(f"  lyrics: {lyr}")
+                        ds = str(item.get("duration_s") or "").strip()
+                        if ds:
+                            content_lines.append(f"  duration: {ds}s")
                         logger.info(f"[FlowMusic]   [{idx}] {item.get('url')}")
+                    content_text = "\n".join(content_lines)
                     yield self.formatter.pack_chunk(
-                        "",
+                        content_text,
                         completion_id=self._completion_id,
                         media=audio_items,
                     )
@@ -1410,5 +1426,34 @@ def _extract_flowmusic_audio_items(raw: Any) -> list:
         title = str(clip.get("title") or "").strip()
         if title:
             item["title"] = title
+
+        # 附带文字信息：提示词 / 歌词 / 时长
+        sound_prompt = ""
+        op = clip.get("operation")
+        if isinstance(op, dict):
+            sound_prompt = str(op.get("sound_prompt") or "").strip()
+        if not sound_prompt:
+            sound_prompt = str(clip.get("sound_prompt") or "").strip()
+        if sound_prompt:
+            item["sound_prompt"] = sound_prompt
+
+        lyrics = ""
+        lyrics_obj = clip.get("lyrics")
+        if isinstance(lyrics_obj, dict) and lyrics_obj.get("status") == "completed":
+            lv = lyrics_obj.get("value")
+            if isinstance(lv, dict):
+                lyrics = str(lv.get("text") or "").strip()
+            elif isinstance(lv, str):
+                lyrics = lv.strip()
+        if lyrics:
+            item["lyrics"] = lyrics
+
+        duration = ""
+        duration_obj = clip.get("duration")
+        if isinstance(duration_obj, dict) and duration_obj.get("status") == "completed":
+            duration = str(duration_obj.get("value") or "").strip()
+        if duration:
+            item["duration_s"] = duration
+
         items.append(item)
     return items
